@@ -2,6 +2,27 @@ from typing import List, Tuple
 
 import pandas as pd
 import numpy as np
+import warnings
+from tqdm import tqdm
+
+
+
+def generate_symmetric_intervals(boundaries: List[float]) -> List[Tuple]:
+    """Returns a list of symmetric intervals given the one-sided boundaries input.
+    NOTE: must be symmetric about 0 (boundaries must include 0 as the first item).
+    Arguments:
+        boundaries (List[float]): the boundary values on the positive side.
+    Returns:
+        List[Tuple]: each item contains the starting and ending value of the interval.
+    """
+    # define one-sided intervals
+    intervals = [(boundaries[i], boundaries[i + 1]) for i in range(len(boundaries) - 1)]
+
+    # replicate other side with symmetry
+    intervals += [(-e[1],-e[0]) for e in intervals]
+    intervals = sorted(intervals)
+
+    return intervals
 
 
 
@@ -47,28 +68,38 @@ def engineer_targets(
     results = []
 
     # Process each stock symbol separately
-    for symbol, group in weekly_df.groupby('symbol'):
+    for symbol, w_data in weekly_df.groupby('symbol'):
+            
+        # Get daily data for the symbol
+        d_data = daily_df.query("symbol == @symbol")
+        if d_data.shape[0] == 0:
+            warnings.warn(f"No daily data found for symbol '{symbol}', continuing to next symbol.")
+            continue
+
+        # Define the forecast horizon
+        w_data['horizon_end_date'] = w_data['date'] + pd.DateOffset(days=forecast_horizon)
+
+        # Days missing from each week's forecast horizon 
+        # = horizon end date - maximum date of daily data
+        max_daily_date = d_data['date'].max()
+        w_data['days_missing_from_horizon'] = (w_data['horizon_end_date'] - max_daily_date).dt.days
 
         # Iterate through each week's closing price
-        for i, row in group.iterrows():
+        for i, row in tqdm(w_data.iterrows(), desc=f"Calculating for {symbol}", total=w_data.shape[0]):
             current_date = row['date']
             current_price = row['close']
-
-            # Define the forecast horizon
-            horizon_end_date = current_date + pd.DateOffset(days=forecast_horizon)
-            
-            # Get data for the symbol
-            symbol_df = daily_df.query("symbol == @symbol")
+            horizon_end_date = row['horizon_end_date']
+            days_missing_from_horizon = row['days_missing_from_horizon']
             
             # Check for days missing from the forecast horizon
-            if symbol_df.shape[0] == 0 or (horizon_end_date - symbol_df['date'].max()).days > horizon_margin:
+            if days_missing_from_horizon > horizon_margin:
                 # Append results
                 results.append({'symbol': symbol, 'week': current_date, 'labels': np.nan})
                 continue
 
-            # Get daily prices within the forecast horizon
+            # Get daily closing prices within the forecast horizon
             future_prices = (
-                symbol_df.query("(date > @current_date) & (date <= @horizon_end_date)")
+                d_data.query("(date > @current_date) & (date <= @horizon_end_date)")
                 ['close']
                 .values
             )
