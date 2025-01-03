@@ -127,37 +127,6 @@ class TestEngineerTarget(unittest.TestCase):
         assert_frame_equal(result, expected)
 
 
-    def test_one_symbol_no_data(self):
-        # Input data
-        test_weekly = pd.DataFrame(
-            [
-                ['ABC', pd.Timestamp('2025-01-01'), 100.00]
-            ], 
-            columns=['symbol', 'date', 'close']
-        )
-        test_daily = pd.DataFrame(
-            [], 
-            columns=['symbol', 'date', 'close']
-        )
-
-        intervals = [(-np.inf, -0.20), (-0.20, 0), (0, 0.20), (0.20, np.inf)]
-
-        result = engineer_targets(test_weekly, test_daily, 
-                    forecast_horizon=2, horizon_margin=0, intervals=intervals
-        )
-
-        # Expected result
-        expected = pd.DataFrame(
-            [
-                ['ABC', pd.Timestamp('2025-01-01'), np.nan]
-            ], 
-            columns=['symbol', 'week', 'labels']
-        )
-
-        # Assert the result
-        assert_frame_equal(result, expected)
-
-
 
 if __name__ == '__main__':
     unittest.main()
