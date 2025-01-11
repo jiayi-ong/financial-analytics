@@ -88,7 +88,8 @@ def label_intervals(
 
 def engineer_targets(
     weekly_df: pd.DataFrame, daily_df: pd.DataFrame,
-    forecast_horizon: int, horizon_margin: int, intervals: List[Tuple]
+    forecast_horizon: int, horizon_margin: int, intervals: List[Tuple],
+    persistence: int=1
 ) -> pd.DataFrame:
     """Returns a DataFrame that maps each stock's weekly data to the multi-label target variable,
     which indicates the discrete levels of price changes actualized within the forecast horizon relative to
@@ -101,6 +102,7 @@ def engineer_targets(
         horizon_margin (int): the allowance for the number of days missing from the forecast horizon
             (horizon_margin < forecast_horizon)
         intervals: each tuple contains the lower and upper boundaries of the price change intervals
+        persistence (int): the required number of consecutive trading days for a price change to be considered.
     Prerequisites:
         1. weekly_df and daily_df must be sorted by symbol and date (ascending)
         2. the 'date' columns of weekly_df and daily_df must be formated as datetime
