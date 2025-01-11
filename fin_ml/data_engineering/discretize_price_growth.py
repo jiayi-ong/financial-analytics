@@ -7,6 +7,33 @@ from tqdm import tqdm
 
 
 
+def has_consecutive_ones(arr: np.array, N: int) -> bool:
+    """Returns True iff the given array has N consecutive 1s.
+    Examples:
+        >>> import numpy as np
+        >>> has_consecutive_ones(np.array([0, 1, 1, 1, 0, 1, 1]), 3)
+        True
+        >>> has_consecutive_ones(np.array([0, 1, 0, 1, 1, 0, 1]), 2)
+        True
+        >>> has_consecutive_ones(np.array([False, True, False, True, False]), 1)
+        True
+        >>> has_consecutive_ones(np.array([0, 0, 0, 0, 0, 0]), 1)
+        False
+        >>> has_consecutive_ones(np.array([1, 1, 1, 1, 1]), 6)
+        False
+    """
+    count = 0  # Counter for consecutive 1s
+    for num in arr:
+        if num == 1:
+            count += 1  # Increment counter if the element is 1
+            if count == N:  # If counter reaches N, return True
+                return True
+        else:
+            count = 0  # Reset counter if the element is 0
+    return False
+
+
+
 def generate_symmetric_intervals(boundaries: List[float]) -> List[Tuple]:
     """Returns a list of symmetric intervals given the one-sided boundaries input.
     NOTE: must be symmetric about 0 (boundaries must include 0 as the first item).
@@ -14,6 +41,9 @@ def generate_symmetric_intervals(boundaries: List[float]) -> List[Tuple]:
         boundaries (List[float]): the boundary values on the positive side.
     Returns:
         List[Tuple]: each item contains the starting and ending value of the interval.
+    Examples:
+        >>> generate_symmetric_intervals([0, 1, 2])
+        [(-2, -1), (-1, 0), (0, 1), (1, 2)]
     """
     # define one-sided intervals
     intervals = [(boundaries[i], boundaries[i + 1]) for i in range(len(boundaries) - 1)]
@@ -27,18 +57,29 @@ def generate_symmetric_intervals(boundaries: List[float]) -> List[Tuple]:
 
 
 def label_intervals(
-    price_changes: np.array, intervals: List[Tuple]
+    price_changes: np.array, intervals: List[Tuple], persistence: int=1
 ) -> np.array:
     """Returns an array of boolean values, each indicating whether 
     a price change within an interval is detected.
     Arguments:
-        price_changes (np.array): array of price changes
+        price_changes (np.array): array of price changes relative to a single reference day
         intervals (List[Tuple]): each tuple contains the lower and upper boundaries of the intervals
+        persistence (int): the required number of consecutive trading days for a price change to be considered.
+            e.g. if persistence=2 but a 20% growth is only sustained for 1 day, it does not count.
+    Examples:
+        >>> import numpy as np
+        >>> price_changes = np.array([0.01, -0.2, -0.22, -0.1, 0.25, 0.26])
+        >>> intervals = [(-0.3,-0.15),(-0.15,0),(0,0.15),(0.15,0.3)]
+        >>> label_intervals(price_changes, intervals, persistence=2)
+        array([1, 0, 0, 1])
+        >>> label_intervals(price_changes, intervals, persistence=1)
+        array([1, 1, 1, 1])
     """
     labels = np.zeros(len(intervals), dtype=int)
     
     for i, (low, upp) in enumerate(intervals):
-        if np.any((price_changes > low) & (price_changes <= upp)):
+        bool_array = (price_changes > low) & (price_changes <= upp)
+        if has_consecutive_ones(bool_array, persistence):
             labels[i] = 1
             
     return labels
@@ -117,3 +158,9 @@ def engineer_targets(
     target_df = pd.DataFrame(results)
 
     return target_df
+
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
